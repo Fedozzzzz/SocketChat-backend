@@ -7,7 +7,7 @@ const io = require("socket.io")(http);
 const uuid = require("uuid");
 
 
-let users = [];
+let users = new Map();
 let rooms = new Map();
 
 io.on("connection", (socket) => {
@@ -36,11 +36,30 @@ io.on("connection", (socket) => {
         socket.currentRoom = null;
     });
     socket.on("nickname", (nickname) => {
-        users.push({nickname: nickname, id: socket.id});
+        // users.push({nickname: nickname, id: socket.id});
+        users.set(socket.id, {nickname: nickname});
         socket.nickname = nickname;
         // console.log(socket.nickname);
     });
     socket.on("chat message", (data) => {
         io.to(socket.currentRoom).emit('chat message', `${socket.nickname}: ${data.msg}`);
     });
+    socket.on("members", () => {
+        const clients = io.sockets.adapter.rooms[socket.currentRoom];
+        // io.to(socket.currnetRoom).emit("members",JSON.stringify(clients));
+        // console.log(clients);
+        let dataToSend = {};
+        for (let member in clients.sockets) {
+            // console.log(users.get(member).nickname);
+            dataToSend[member] = {nickname: users.get(member).nickname};
+        }
+        // console.log(io.sockets.adapter.rooms);
+        // console.log(dataToSend);
+        // io.to(socket.currentRoom).emit("members", (clients));
+        io.to(socket.currentRoom).emit("members", (dataToSend));
+    });
+    socket.on("webrtc", (id, msg) => {
+        // console.log(id, msg);
+        socket.to(id).emit("webrtc", socket.id, msg);
+    })
 });
